@@ -51,12 +51,28 @@ class ReportsGenerator(object):
     HOURS_CALCULATOR = \
         '=E{0}/60'
 
-    def __init__(self, month):
+    def __init__(self, month, empty_rows=0):
         self.month = month
         if self.month.lower() not in self.MONTHS:
             raise ReportsGeneratorException('Undefined month: ' + \
                                             '{0}'.format(self.month))
 
+        if isinstance(empty_rows, str):
+            if empty_rows.isdigit():
+                empty_rows = int(empty_rows)
+            else:
+                raise ReportsGeneratorException('Parameter empty_rows ' + \
+                                                'should be a number.')
+
+        if not isinstance(empty_rows, int):
+            raise ReportsGeneratorException('Parameter empty_rows ' + \
+                                            'should be a number.')
+
+        if empty_rows >= 8:
+            raise ReportsGeneratorException('Parameter empty_rows ' + \
+                                            'should be not greater than 8.')
+
+        self.empty_rows = empty_rows
         self.current_year = datetime.now().year
         self.current_month = self.MONTHS[self.month.lower()]
 
@@ -70,6 +86,7 @@ class ReportsGenerator(object):
             wr.writerow(self._sheet_headers(self.SHEET_HEADERS))
             wr.writerow(self._sheet_headers(self.SHEET_SUBHEADERS))
             wr.writerow(['' for i in range(0, 9)])
+            row_number = 0
 
             for day in range(1, self.days_amount + 1):
                 date = '%02d/%02d' % (day, self.current_month)
@@ -81,9 +98,30 @@ class ReportsGenerator(object):
                                  '=SUM(E4:E{0})'.format(self.days_amount + 4), \
                                  '=SUM(F4:F{0})'.format(self.days_amount + 4)])
                 else:
+                    if row_number != 0:
+                        rn = row_number
+                    else:
+                        rn = day + 3
                     wr.writerow([date, '', '', '', \
-                                 self.MINUTES_CALCULATOR.format(day + 3), \
-                                 self.HOURS_CALCULATOR.format(day + 3), '', '', '', ''])
+                                 self.MINUTES_CALCULATOR.format(rn), \
+                                 self.HOURS_CALCULATOR.format(rn), \
+                                 '', '', '', ''])
+
+                if self.empty_rows != 0:
+                    for i in range(1, self.empty_rows + 1):
+                        if row_number != 0:
+                            rn = row_number + i
+                        else:
+                            rn = day + 3 + i
+                        wr.writerow(['', '', '', '', \
+                                     self.MINUTES_CALCULATOR.format(rn), \
+                                     self.HOURS_CALCULATOR.format(rn), \
+                                     '', '', '', ''])
+
+                    if row_number != 0:
+                        row_number = rn + 1
+                    else:
+                        row_number = self.empty_rows + 4 + day
 
     def _sheet_headers(self, headers):
         cols = []
